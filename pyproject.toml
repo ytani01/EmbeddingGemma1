@@ -13,6 +13,7 @@ dependencies = [
     "scikit-learn>=1.5.0",
     "huggingface-hub>=0.23.0",
     "click>=8.1.7",
+    "hdbscan>=0.8.40",
 ]
 
 [tool.uv]
