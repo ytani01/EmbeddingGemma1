@@ -1,81 +1,73 @@
 import torch
-import numpy as np
+import click
+import os
 from sentence_transformers import SentenceTransformer
 from sklearn.cluster import KMeans
 
-def classify_texts():
+@click.command()
+@click.option(
+    '--num-clusters',
+    default=2,
+    help='分類するグループの数。',
+    show_default=True,
+)
+@click.argument(
+    'input_dir',
+    type=click.Path(exists=True, file_okay=False, dir_okay=True),
+    required=True,
+)
+def classify_command(num_clusters, input_dir):
     """
-    EmbeddingGemma を使って文章を意味に基づいて自動的に分類（クラスタリング）するサンプル
+    指定されたフォルダ内のテキストファイルを読み込み、内容を意味に基づいて自動的に分類するCLIツール。
     """
-    # --- 1. モデルのロード ---
-    # 文章をベクトルに変換するためのEmbeddingGemmaモデルをロードする。
-    # GPUが利用可能ならGPUを、そうでなければCPUを使用する。
-    print("AI: モデルをロードしています...")
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # --- 1. ファイル読み込み ---
+    texts, filenames = [], []
+    print(f"AI: '{input_dir}' からテキストファイルを読み込んでいます...")
     try:
-        model = SentenceTransformer("google/embeddinggemma-300M").to(device=device)
+        for filename in sorted(os.listdir(input_dir)):
+            if filename.endswith(".txt"):
+                filepath = os.path.join(input_dir, filename)
+                with open(filepath, 'r', encoding='utf-8') as f:
+                    texts.append(f.read())
+                    filenames.append(filename)
     except Exception as e:
-        print(f"AI: モデルのロード中にエラーが発生しました: {e}")
+        print(f"エラー: ファイルの読み込み中に問題が発生しました: {e}")
         return
+    if not texts:
+        print("エラー: 指定されたディレクトリに .txt ファイルが見つかりません。")
+        return
+
+    # --- 2. モデルロード ---
+    print("AI: EmbeddingGemmaモデルをロードしています...")
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = SentenceTransformer("google/embeddinggemma-300M").to(device=device)
     print("AI: モデルのロードが完了しました。")
 
-    # --- 2. 分類対象の文章 ---
-    # ここでは例として、「食べ物」と「スポーツ」に関する文章が混在したリストを定義する。
-    # これらの文章が、AIによって意味的に近いグループに分けられるかを確認する。
-    texts = [
-        "昨日食べたラーメンはとても美味しかった。",
-        "サッカーの試合は後半に劇的なゴールが決まった。",
-        "新鮮な魚介を使った寿司は格別だ。",
-        "彼は毎朝公園でジョギングをしている。",
-        "デザートに濃厚なチョコレートケーキを注文した。",
-        "テニスの大会で彼は見事優勝を果たした。",
-    ]
-
-    print("\n--- Input Texts ---")
-    for text in texts:
-        print(f"- {text}")
-
-    # --- 3. 文章をベクトル化 ---
-    # 用意した文章リストをEmbeddingGemmaモデルに渡し、それぞれの文章を
-    # 意味を表現する数値のベクトル（768次元）に変換する。
-    # このベクトル間の距離が、文章間の意味の近さを表す。
+    # --- 3. ベクトル化 ---
     print("\nAI: 文章をベクトルに変換しています...")
     embeddings = model.encode(texts)
-    print(f"AI: ベクトル化が完了しました。 (Shape: {embeddings.shape})")
 
-    # --- 4. K-meansクラスタリングで分類 ---
-    # scikit-learnライブラリのKMeansアルゴリズムを使い、ベクトルをグループ分けする。
-    # n_clustersで、いくつのグループに分けるかを指定する。
-    # random_stateは、毎回同じ結果を得るための乱数シード。
-    # n_initは、異なる初期値でアルゴリズムを10回実行し、最も良い結果を採用する設定。
-    num_clusters = 2
+    # --- 4. クラスタリング ---
+    if num_clusters > len(texts):
+        print(f"\nエラー: グループ数({num_clusters})が文章数({len(texts)})より多くなっています。")
+        return
     clustering_model = KMeans(n_clusters=num_clusters, random_state=42, n_init=10)
-    # .fit()で、ベクトルデータを使ってクラスタリングモデルを学習させる。
-    clustering_model.fit(embeddings)
-    # .labels_で、各文章がどのクラスタID（0か1）に分類されたかの結果を取得する。
-    cluster_assignment = clustering_model.labels_
-
+    cluster_assignment = clustering_model.fit_predict(embeddings)
     print(f"\nAI: {num_clusters}個のグループへの分類を実行しました。")
 
     # --- 5. 結果の表示 ---
-    # 分類結果を人間が分かりやすいように表示する。
-    # まず、分類先のグループの数だけ空のリストを作成する。
-    clustered_sentences = [[] for i in range(num_clusters)]
-    # 各文章の分類結果（cluster_id）を見て、対応するグループのリストに文章を追加していく。
-    for sentence_id, cluster_id in enumerate(cluster_assignment):
-        clustered_sentences[cluster_id].append(texts[sentence_id])
-
-    # 最終的なグループ分けの結果を表示する。
     print("\n--- Classification Results ---")
-    for i, cluster in enumerate(clustered_sentences):
-        print(f"\n--- Group {i+1} ---")
-        for sentence in cluster:
-            print(f"- {sentence}")
+    clustered_files = [[] for _ in range(num_clusters)]
+    for i, cluster_id in enumerate(cluster_assignment):
+        clustered_files[cluster_id].append(filenames[i])
+
+    for i, cluster in enumerate(clustered_files):
+        # グループ名をAI命名ではなく、クラスタID（0, 1, 2...）で表示する
+        print(f"\n--- Cluster {i} ---")
+        for filename in cluster:
+            print(f"- {filename}")
 
 if __name__ == "__main__":
-    # このサンプルを実行するには、scikit-learnライブラリが必要です。
-    # プログラムがライブラリをインポートできるか試してみて、
-    # もし失敗（ImportError）したら、インストール方法を案内して終了する。
     try:
         from sklearn.cluster import KMeans
     except ImportError:
@@ -83,4 +75,4 @@ if __name__ == "__main__":
         print("次のコマンドでインストールしてください: uv pip install scikit-learn")
         exit()
     
-    classify_texts()
+    classify_command()

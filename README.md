@@ -85,33 +85,37 @@ uv run python chat.py
 
 ### 文章の自動分類の実行
 
+`click`ライブラリを導入したことにより、コマンドラインから操作できます。
+分類したいテキストファイル（`.txt`）を一つのフォルダにまとめ、そのフォルダのパスを指定して実行します。
+
+**基本的な使い方:**
+
 ```bash
-uv run python classify_texts.py
+uv run python classify_texts.py <フォルダのパス>
 ```
 
-プログラムが実行され、複数の文章が2つのグループに自動で分類される結果が表示されます。
+**実行例:**
 
-#### 独自の文章で試すには
+リポジトリ内にサンプルデータとして `text_classification_data` フォルダを用意しています。
+以下のコマンドで、このフォルダ内のテキストファイルを2つのグループに分類できます。
 
-このサンプルの分類対象やグループ数を変更するには、`classify_texts.py` ファイルを直接編集します。
+```bash
+uv run python classify_texts.py text_classification_data
+```
 
-1.  **分類したい文章の変更:**
-    ファイル内の `texts = [...]` というリストを、ご自身の好きな文章のリストに書き換えてください。
+**グループ数を指定する場合:**
 
-    ```python
-    # --- 2. 分類対象の文章 ---
-    texts = [
-        "これは最初の文章です。",
-        "これは2番目のテキスト。",
-        # ...好きなだけ文章を追加...
-    ]
-    ```
+`--num-clusters` オプションで、分類するグループの数を変更できます。
 
-2.  **グループ数の変更:**
-    分類したいグループの数を変更するには、`num_clusters = 2` の数値を変更してください。
+```bash
+# 3つのグループに分類する例
+uv run python classify_texts.py --num-clusters 3 text_classification_data
+```
 
-    ```python
-    # --- 4. K-meansクラスタリングで分類 ---
-    # ここでは、文章を3つのグループに分ける
-    num_clusters = 3
-    ```
+**ヘルプの表示:**
+
+コマンドの詳しい使い方やオプションを確認できます。
+
+```bash
+uv run python classify_texts.py --help
+```
