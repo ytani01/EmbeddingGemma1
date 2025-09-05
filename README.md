@@ -22,7 +22,7 @@ EmbeddingGemmaは、テキストを「ベクトル」と呼ばれる数値の配
 ### 1. リポジトリのクローン
 
 ```bash
-git clone <リポジトリのURL>
+git clone https://github.com/ytani01/EnbeddingGemma1
 cd embeddinggemma1
 ```
 
@@ -62,10 +62,10 @@ EmbeddingGemmaモデルは、Hugging Face Hub上でアクセスが制限され�
 次に、Hugging Faceのアクセストークンを準備します。
 [こちらのページ](https://huggingface.co/settings/tokens) から、`read` 権限を持つトークンをコピーしてください。
 
-準備ができたら、ターミナルで以下のコマンドを実行してログインします。
+準備ができたら、ターミナルで以下のコマンドを実行してログインします。（この `hf` コマンドは、`huggingface-hub` パッケージに含まれており、`uv sync` によってインストール済みです）
 
 ```bash
-huggingface-cli login
+uv run hf auth login
 ```
 
 `Token:` と表示されたら、コピーしたトークンを貼り付けてEnterキーを押してください。
@@ -90,3 +90,28 @@ uv run python classify_texts.py
 ```
 
 プログラムが実行され、複数の文章が2つのグループに自動で分類される結果が表示されます。
+
+#### 独自の文章で試すには
+
+このサンプルの分類対象やグループ数を変更するには、`classify_texts.py` ファイルを直接編集します。
+
+1.  **分類したい文章の変更:**
+    ファイル内の `texts = [...]` というリストを、ご自身の好きな文章のリストに書き換えてください。
+
+    ```python
+    # --- 2. 分類対象の文章 ---
+    texts = [
+        "これは最初の文章です。",
+        "これは2番目のテキスト。",
+        # ...好きなだけ文章を追加...
+    ]
+    ```
+
+2.  **グループ数の変更:**
+    分類したいグループの数を変更するには、`num_clusters = 2` の数値を変更してください。
+
+    ```python
+    # --- 4. K-meansクラスタリングで分類 ---
+    # ここでは、文章を3つのグループに分ける
+    num_clusters = 3
+    ```
